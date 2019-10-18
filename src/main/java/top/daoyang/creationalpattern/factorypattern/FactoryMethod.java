@@ -3,7 +3,7 @@ package top.daoyang.creationalpattern.factorypattern;
 /**
  * 工厂模式: 根据每一种类别创建单独的工厂.
  */
-public class FactoryPattern {
+public class FactoryMethod {
 
     interface Hamburger {
         void consume();
