@@ -1,4 +1,4 @@
-package top.daoyang.creationalpattern.factorypattern;
+package top.daoyang.creational.factorypattern;
 
 /**
  * 工厂模式: 根据每一种类别创建单独的工厂.

@@ -1,4 +1,4 @@
-package top.daoyang.creationalpattern.factorypattern;
+package top.daoyang.creational.factorypattern;
 
 /**
  * 简单工厂

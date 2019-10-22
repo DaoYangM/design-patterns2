@@ -1,4 +1,4 @@
-package top.daoyang.creationalpattern.factorypattern;
+package top.daoyang.creational.factorypattern;
 
 /**
  * 抽象工厂: 为创建一组相关或相互依赖的对象提供一个接口,
