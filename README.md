@@ -1,0 +1,1 @@
+vless://c94a0e33-731e-4aba-9f21-bad9a0802918@89.208.243.94:443?security=reality&flow=xtls-rprx-vision&fp=chrome&pbk=iZYTqm4bcSjKOoGAKBCB56iONRZvK-LZ9lMcMYLwYnw&sni=www.apple.com&spx=%2F#VLESS-XTLS-uTLS-REALITY
