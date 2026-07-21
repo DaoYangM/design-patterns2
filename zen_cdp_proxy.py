@@ -12,7 +12,7 @@ from typing import Any
 import requests
 import websocket
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.responses import JSONResponse, Response
 
 if sys.version_info < (3, 9):
     raise RuntimeError("Python 3.9 or newer is required")
@@ -131,8 +131,12 @@ def zen_request(payload: Mapping[str, Any]) -> dict[str, Any]:
         {"expression": expression, "awaitPromise": True, "returnByValue": True},
     )
     evaluation = result.get("result")
-    remote_result = evaluation.get("result") if isinstance(evaluation, dict) else None
-    value = remote_result.get("value") if isinstance(remote_result, dict) else None
+    if not isinstance(evaluation, dict):
+        raise CDPError("Chrome did not return a Runtime.evaluate result")
+    remote_result = evaluation.get("result")
+    if not isinstance(remote_result, dict):
+        raise CDPError("Chrome did not return a remote result")
+    value = remote_result.get("value")
     if not isinstance(value, dict):
         raise CDPError("Chrome did not return a Zen response")
     return value
@@ -171,8 +175,8 @@ async def responses(request: Request) -> Response:
     if not isinstance(body, str) or not isinstance(status, int) or not isinstance(content_type, str):
         raise HTTPException(status_code=502, detail="Chrome returned an incomplete Zen response")
     if payload.get("stream"):
-        return StreamingResponse(
-            iter([body.encode()]),
+        return Response(
+            content=body,
             status_code=status,
             media_type=content_type or "text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
