@@ -82,8 +82,10 @@ class ChromeCDP:
             try:
                 self._ws.send(json.dumps(message))
                 while True:
-                    if time.monotonic() >= deadline:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
                         raise CDPError("Chrome CDP command timed out")
+                    self._ws.settimeout(remaining)
                     response = json.loads(self._ws.recv())
                     if response.get("id") == request_id:
                         if "error" in response:
@@ -133,18 +135,18 @@ def zen_request(payload: Mapping[str, Any]) -> dict[str, Any]:
     evaluation = result.get("result")
     if not isinstance(evaluation, dict):
         raise CDPError("Chrome did not return a Runtime.evaluate result")
-    remote_result = evaluation.get("result")
-    if not isinstance(remote_result, dict):
+    execution_value = evaluation.get("result")
+    if not isinstance(execution_value, dict):
         raise CDPError("Chrome did not return a remote result")
-    value = remote_result.get("value")
+    value = execution_value.get("value")
     if not isinstance(value, dict):
         raise CDPError("Chrome did not return a Zen response")
     return value
 
 
 @app.get("/")
-def root() -> dict[str, bool]:
-    return {"status": True}
+def root() -> dict[str, str]:
+    return {"status": "running"}
 
 
 @app.get("/v1/models")
