@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import threading
+import time
 from collections.abc import Mapping
 from typing import Any
 
@@ -66,10 +67,13 @@ class ChromeCDP:
             self._counter += 1
             request_id = self._counter
             message = {"id": request_id, "method": method, "params": params or {}}
+            deadline = time.monotonic() + REQUEST_TIMEOUT_SECONDS
 
             try:
                 self._ws.send(json.dumps(message))
                 while True:
+                    if time.monotonic() >= deadline:
+                        raise CDPError("Chrome CDP command timed out")
                     response = json.loads(self._ws.recv())
                     if response.get("id") == request_id:
                         if "error" in response:
@@ -116,7 +120,9 @@ def zen_request(payload: Mapping[str, Any]) -> dict[str, Any]:
         "Runtime.evaluate",
         {"expression": expression, "awaitPromise": True, "returnByValue": True},
     )
-    value = result.get("result", {}).get("result", {}).get("value")
+    evaluation = result.get("result")
+    remote_result = evaluation.get("result") if isinstance(evaluation, dict) else None
+    value = remote_result.get("value") if isinstance(remote_result, dict) else None
     if not isinstance(value, dict):
         raise CDPError("Chrome did not return a Zen response")
     return value
