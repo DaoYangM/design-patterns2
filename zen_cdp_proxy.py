@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+import sys
 import threading
 import time
 from collections.abc import Mapping
@@ -12,6 +13,9 @@ import requests
 import websocket
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
+
+if sys.version_info < (3, 9):
+    raise RuntimeError("Python 3.9 or newer is required")
 
 CHROME_DEBUGGER_URL = os.getenv("CHROME_DEBUGGER_URL", "http://127.0.0.1:9222")
 CDP_ORIGIN = os.getenv("CDP_ORIGIN", "http://localhost")
@@ -34,12 +38,18 @@ class ChromeCDP:
 
     def _connect(self) -> None:
         try:
-            tabs = requests.get(
+            response = requests.get(
                 f"{CHROME_DEBUGGER_URL.rstrip('/')}/json",
                 timeout=REQUEST_TIMEOUT_SECONDS,
-            ).json()
-        except (requests.RequestException, ValueError) as error:
+            )
+        except requests.RequestException as error:
             raise CDPError(f"Cannot reach Chrome DevTools at {CHROME_DEBUGGER_URL}") from error
+        try:
+            tabs = response.json()
+        except ValueError as error:
+            raise CDPError("Chrome DevTools returned invalid JSON") from error
+        if not isinstance(tabs, list):
+            raise CDPError("Chrome DevTools did not return a tab list")
 
         ws_url = next(
             (
@@ -153,9 +163,13 @@ async def responses(request: Request) -> Response:
     except CDPError as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
 
-    body = upstream["body"]
-    status = upstream["status"]
-    content_type = upstream["contentType"]
+    if not isinstance(upstream, dict):
+        raise HTTPException(status_code=502, detail="Chrome returned an invalid Zen response")
+    body = upstream.get("body")
+    status = upstream.get("status")
+    content_type = upstream.get("contentType")
+    if not isinstance(body, str) or not isinstance(status, int) or not isinstance(content_type, str):
+        raise HTTPException(status_code=502, detail="Chrome returned an incomplete Zen response")
     if payload.get("stream"):
         return StreamingResponse(
             iter([body.encode()]),
