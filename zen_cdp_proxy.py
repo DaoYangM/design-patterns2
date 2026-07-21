@@ -70,6 +70,7 @@ class ChromeCDP:
             raise CDPError("Could not connect to the Chrome CDP WebSocket") from error
 
     def call(self, method: str, params: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        """Run a CDP command and return its response, or raise CDPError on failure."""
         with self._lock:
             if self._ws is None or not self._ws.connected:
                 self._connect()
@@ -100,6 +101,7 @@ chrome = ChromeCDP()
 
 
 def zen_request(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Send a Responses payload from Chrome and return its status, type, and body."""
     if not ZEN_TOKEN:
         raise HTTPException(
             status_code=503, detail="ZEN_TOKEN must be set in the proxy environment"
@@ -135,10 +137,10 @@ def zen_request(payload: Mapping[str, Any]) -> dict[str, Any]:
     evaluation = result.get("result")
     if not isinstance(evaluation, dict):
         raise CDPError("Chrome did not return a Runtime.evaluate result")
-    execution_value = evaluation.get("result")
-    if not isinstance(execution_value, dict):
+    remote_object = evaluation.get("result")
+    if not isinstance(remote_object, dict):
         raise CDPError("Chrome did not return a remote result")
-    value = execution_value.get("value")
+    value = remote_object.get("value")
     if not isinstance(value, dict):
         raise CDPError("Chrome did not return a Zen response")
     return value
@@ -184,7 +186,7 @@ async def responses(request: Request) -> Response:
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    if "json" in content_type.lower():
+    if content_type.lower().startswith("application/json"):
         try:
             return JSONResponse(content=json.loads(body), status_code=status)
         except json.JSONDecodeError:
